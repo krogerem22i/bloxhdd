@@ -1,8 +1,7 @@
 -- =============================================================================
--- BLOOMBET AUTOMATION LUA SCRIPT FOR LDPLAYER (MM2 ENGINE)
+-- BLOOMBET AUTOMATION LUA SCRIPT FOR EMULATORS (MM2 ENGINE)
 -- =============================================================================
 
--- ⚠️ REPLACE THIS LINK WITH YOUR ACTIVE NGROK LINK FROM YOUR TERMINAL SCREEN
 local BRIDGE_URL = "https://humorous-unpledged-grain.ngrok-free.dev"
 
 local HttpService = game:GetService("HttpService")
@@ -29,12 +28,24 @@ end
 
 local function httpPost(endpoint, payload)
     local success, result = pcall(function()
-        return request({
-            Url = BRIDGE_URL .. endpoint,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = HttpService:JSONEncode(payload)
-        })
+        -- Mobile-safe HTTP post utility fallback
+        if typeof(request) == "function" then
+            return request({
+                Url = BRIDGE_URL .. endpoint,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(payload)
+            })
+        elseif typeof(syn) == "table" and syn.request then
+            return syn.request({
+                Url = BRIDGE_URL .. endpoint,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(payload)
+            })
+        else
+            error("No valid request function found in this executor environment")
+        end
     end)
     if not success then
         warn("⚠️ Bridge POST failed (" .. endpoint .. "): " .. tostring(result))
@@ -42,22 +53,31 @@ local function httpPost(endpoint, payload)
     return success
 end
 
--- ─── EMULATOR-SAFE INTERACTION ENGINE ────────────────────────────────────────
+-- ─── MOBILE-SAFE INTERACTION ENGINE (FIXED NIL VALUE ERROR) ──────────────────
 
 local function ClickUI(button)
     if button and button.Visible then
-        -- Force-fires execution connections directly, bypassing mouse coordinate bugs
-        local events = {"MouseButton1Click", "MouseButton1Down", "MouseButton1Up", "Activated"}
-        for _, eventName in ipairs(events) do
-            if button[eventName] then
-                pcall(function()
-                    for _, connection in ipairs(getconnections(button[eventName])) do
-                        connection:Fire()
+        -- Safe execution bypass: Try getconnections first, if nil, use simulated UI activation
+        local success = pcall(function()
+            if typeof(getconnections) == "function" then
+                local events = {"MouseButton1Click", "MouseButton1Down", "MouseButton1Up", "Activated"}
+                for _, eventName in ipairs(events) do
+                    if button[eventName] then
+                        for _, connection in ipairs(getconnections(button[eventName])) do
+                            connection:Fire()
+                        end
                     end
-                end)
+                end
+            else
+                -- Fallback if getconnections is nil on Delta mobile: Simulate direct activation states
+                local guiService = game:GetService("GuiService")
+                guiService.SelectedObject = button
+                task.wait(0.05)
+                button:Activate()
+                guiService.SelectedObject = nil
             end
-        end
-        return true
+        end)
+        return success
     end
     return false
 end
@@ -66,7 +86,6 @@ end
 
 local function buildItemLookup()
     table.clear(itemLookup)
-    -- Wait and dynamically extract database values directly from MM2 storage modules
     local itemDatabase = ReplicatedStorage:FindFirstChild("ItemDatabase")
     if itemDatabase then
         for _, category in ipairs(itemDatabase:GetChildren()) do
@@ -91,7 +110,6 @@ local function handleTradeWindow(partnerName)
     local tradeGui = playerGui:WaitForChild("TradeGUI")
     local container = tradeGui:WaitForChild("Container")
     
-    -- Safety checks to ensure we are looking at the right player window
     if container.Visible and container:FindFirstChild("Main") then
         local main = container.Main
         local partnerLabel = main:FindFirstChild("PartnerLabel")
@@ -117,7 +135,6 @@ local function handleTradeWindow(partnerName)
 end
 
 local function hookInventoryDataChanged()
-    -- Safely monitor the trade container elements for inventory mutations
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
     local tradeGui = playerGui:WaitForChild("TradeGUI")
     
@@ -130,7 +147,6 @@ local function hookInventoryDataChanged()
                     local partnerLabel = main:FindFirstChild("PartnerLabel")
                     if partnerLabel then
                         local rawText = partnerLabel.Text
-                        -- Strip decorations to isolate target name
                         local cleanName = rawText:gsub("Trading With: ", ""):gsub(" ", "")
                         handleTradeWindow(cleanName)
                     end
@@ -146,14 +162,11 @@ local function hookInventoryDataChanged()
                 print("🏁 Trade window closed. Offloading completed structure payload to Bridge server.")
                 isProcessingTrade = false
                 
-                -- Construct extraction map
                 local currentTradePartner = "Unknown" 
                 local targetPlayer = Players:FindFirstChild(currentTradePartner)
                 local targetId = targetPlayer and targetPlayer.UserId or 0
                 
-                -- Extract items dynamically held inside the trade log windows
                 local tradedItems = {}
-                -- Add internal extraction parsing rules here based on your inventory tracking layout
                 
                 httpPost("/trade-completed", {
                     userId = targetId,
@@ -179,15 +192,13 @@ local function startWithdrawalPollingLoop()
                 
                 local targetUser = Players:FindFirstChild(job.robloxUsername)
                 if targetUser then
-                    -- Execute trade engine commands directly through ReplicatedStorage remotes
-                    local tradeRemote = ReplicatedStorage: some instances wrapper matching your specific setup
-                    -- tradeRemote:PostServer(targetUser)
+                    -- Execute trade engine commands directly through your remote pathways
                 else
                     warn("❌ Targeted withdrawal recipient [" .. job.robloxUsername .. "] is not present in this lobby.")
                 end
             end
         end
-        task.wait(3) -- Poll every 3 seconds
+        task.wait(3)
     end
 end
 
