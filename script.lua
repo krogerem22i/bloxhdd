@@ -1,5 +1,5 @@
 -- =============================================================================
--- BLOOMBET AUTOMATION SCRIPT (FIXED FOR NGROK BYPASS & JSON CODES)
+-- BLOOMBET AUTOMATION SCRIPT (UNIVERSAL GET-ONLY BYPASS)
 -- =============================================================================
 
 local BRIDGE_URL = "https://humorous-unpledged-grain.ngrok-free.dev"
@@ -11,20 +11,17 @@ local LocalPlayer = Players.LocalPlayer
 
 local isProcessingTrade = false
 
--- ─── SAFE BYPASS HTTP ENGINE ────────────────────────────────────────────────
+-- ─── GET-ONLY NETWORK ENGINE ────────────────────────────────────────────────
 
 local function httpGet(endpoint)
     local success, result = pcall(function()
-        -- Using game:HttpGet with dynamic ngrok bypass header syntax if supported, 
-        -- otherwise fallback to standard text scanning protection
         return game:HttpGet(BRIDGE_URL .. endpoint)
     end)
     
     if not success or not result then return nil end
     
-    -- 🛑 CRITICAL FIX: Prevent "Can't parse JSON" crash if Ngrok sends an HTML error page
     if string.find(result, "<!DOCTYPE html>") or string.find(result, "<html>") then
-        warn("⚠️ Ngrok returned an HTML error page instead of database data. Check your terminal status!")
+        warn("⚠️ Ngrok returned an HTML warning page. Ensure your tunnel is active.")
         return nil
     end
 
@@ -39,25 +36,19 @@ local function httpGet(endpoint)
     end
 end
 
-local function httpPost(endpoint, payload)
-    local success, result = pcall(function()
-        local req = request or http_request or (syn and syn.request)
-        if req then
-            return req({
-                Url = BRIDGE_URL .. endpoint,
-                Method = "POST",
-                Headers = { 
-                    ["Content-Type"] = "application/json",
-                    ["ngrok-skip-browser-warning"] = "true" -- ✅ FORCES NGROK TO BYPASS WARNING SCREENS
-                },
-                Body = HttpService:JSONEncode(payload)
-            })
-        else
-            -- Internal fallback with warning bypass
-            return game:HttpPostAsync(BRIDGE_URL .. endpoint, HttpService:JSONEncode(payload), "application/json")
-        end
-    end)
-    return success
+-- Bypasses restricted POST functions by passing data inside the URL string
+local function reportTradeViaGet(userId, tradeId, itemName)
+    -- Clean parameters for URL safety
+    local cleanItem = string.gsub(itemName, " ", "%%20")
+    local endpoint = string.format("/trade-completed-get?userId=%s&tradeId=%s&item=%s", tostring(userId), tostring(tradeId), cleanItem)
+    
+    print("🚀 Outbound GET route dispatched: " .. endpoint)
+    local response = httpGet(endpoint)
+    if response then
+        print("✅ Trade logged successfully via GET bypass.")
+    else
+        print("⚠️ Direct GET dispatch completed.")
+    end
 end
 
 -- ─── SAFE INTERACTION FOR MOBILE UI ──────────────────────────────────────────
@@ -133,7 +124,7 @@ local function hookInventoryDataChanged()
     tradeGui.Container.ChildRemoved:Connect(function(child)
         if child.Name == "Main" then
             if isProcessingTrade then
-                print("🏁 Trade window closed. Notifying local bridge...")
+                print("🏁 Trade window closed. Processing bypass pipeline...")
                 isProcessingTrade = false
                 
                 local currentTradePartner = "Unknown"
@@ -146,13 +137,10 @@ local function hookInventoryDataChanged()
                 
                 local targetPlayer = Players:FindFirstChild(currentTradePartner)
                 local targetId = targetPlayer and targetPlayer.UserId or 0
-                local tradedItems = {{ name = "Blue Seer", assetId = 0 }}
+                local generatedTradeId = "mm2-" .. tostring(os.time())
                 
-                httpPost("/trade-completed", {
-                    userId = targetId,
-                    tradeId = "mm2-" .. tostring(os.time()),
-                    items = tradedItems
-                })
+                -- Fires your data back to the bridge using your working HttpGet engine
+                reportTradeViaGet(targetId, generatedTradeId, "Blue Seer")
             end
         end
     end)
