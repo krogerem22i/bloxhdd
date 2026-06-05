@@ -19,6 +19,7 @@
       - Delta executor (uses request() for HTTP)
 --]]
 
+-- FIXED: Bridge URL redirected to your actual PC Local IPv4 address for Emulator-to-Host communication
 local BRIDGE_URL = "http://192.168.100.119:4000"
 
 -- ─── Services ────────────────────────────────────────────────────────────────
