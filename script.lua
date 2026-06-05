@@ -12,7 +12,20 @@ local LocalPlayer = Players.LocalPlayer
 local itemLookup = {}
 local isProcessingTrade = false
 
--- ─── UTILITY FUNCTIONS ───────────────────────────────────────────────────────
+-- ─── ROBUST MULTI-EXECUTOR HTTP REQUEST SOLVER ───────────────────────────────
+
+local function safeRequest(options)
+    -- Look for every variation of the request function used by mobile executors
+    local reqFunc = request or (syn and syn.request) or http_request or (http and http.request)
+    
+    if typeof(reqFunc) == "function" then
+        return reqFunc(options)
+    else
+        -- Absolute fallback: If no POST wrapper exists, route via game HttpGet if possible
+        -- (Though modern executors always provide one of the above keys)
+        error("CRITICAL: Your executor does not support any standard HTTP request methods.")
+    end
+end
 
 local function httpGet(endpoint)
     local success, result = pcall(function()
@@ -28,24 +41,12 @@ end
 
 local function httpPost(endpoint, payload)
     local success, result = pcall(function()
-        -- Mobile-safe HTTP post utility fallback
-        if typeof(request) == "function" then
-            return request({
-                Url = BRIDGE_URL .. endpoint,
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode(payload)
-            })
-        elseif typeof(syn) == "table" and syn.request then
-            return syn.request({
-                Url = BRIDGE_URL .. endpoint,
-                Method = "POST",
-                Headers = { ["Content-Type"] = "application/json" },
-                Body = HttpService:JSONEncode(payload)
-            })
-        else
-            error("No valid request function found in this executor environment")
-        end
+        return safeRequest({
+            Url = BRIDGE_URL .. endpoint,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(payload)
+        })
     end)
     if not success then
         warn("⚠️ Bridge POST failed (" .. endpoint .. "): " .. tostring(result))
@@ -53,12 +54,12 @@ local function httpPost(endpoint, payload)
     return success
 end
 
--- ─── MOBILE-SAFE INTERACTION ENGINE (FIXED NIL VALUE ERROR) ──────────────────
+-- ─── MOBILE-SAFE INTERACTION ENGINE ──────────────────────────────────────────
 
 local function ClickUI(button)
     if button and button.Visible then
-        -- Safe execution bypass: Try getconnections first, if nil, use simulated UI activation
         local success = pcall(function()
+            -- Check for getconnections securely
             if typeof(getconnections) == "function" then
                 local events = {"MouseButton1Click", "MouseButton1Down", "MouseButton1Up", "Activated"}
                 for _, eventName in ipairs(events) do
@@ -69,7 +70,7 @@ local function ClickUI(button)
                     end
                 end
             else
-                -- Fallback if getconnections is nil on Delta mobile: Simulate direct activation states
+                -- Fallback if getconnections is missing: Programmatic selection mapping
                 local guiService = game:GetService("GuiService")
                 guiService.SelectedObject = button
                 task.wait(0.05)
