@@ -20,7 +20,7 @@
 --]]
 
 -- FIXED: Bridge URL redirected to your actual PC Local IPv4 address for Emulator-to-Host communication
-local BRIDGE_URL = "http://192.168.100.119:4000"
+local BRIDGE_URL = "http://10.0.2.2:4000"
 
 -- ─── Services ────────────────────────────────────────────────────────────────
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
