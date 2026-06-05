@@ -19,7 +19,7 @@
       - Delta executor (uses request() for HTTP)
 --]]
 
-local BRIDGE_URL = "http://127.0.0.1:4000"
+local BRIDGE_URL = "http://192.168.100.119"
 
 -- ─── Services ────────────────────────────────────────────────────────────────
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
