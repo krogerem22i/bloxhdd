@@ -1,5 +1,5 @@
 -- =============================================================================
--- BLOOMBET LIGHTWEIGHT AUTOMATION SCRIPT (DELTA REFIX)
+-- BLOOMBET AUTOMATION SCRIPT (FIXED SYNTAX)
 -- =============================================================================
 
 local BRIDGE_URL = "https://humorous-unpledged-grain.ngrok-free.dev"
@@ -11,7 +11,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local isProcessingTrade = false
 
--- ─── SIMPLE UNIVERSAL HTTP HANDLERS ──────────────────────────────────────────
+-- ─── ROBUST MULTI-EXECUTOR HTTP HANDLERS ─────────────────────────────────────
 
 local function httpGet(endpoint)
     local success, result = pcall(function()
@@ -26,7 +26,7 @@ end
 
 local function httpPost(endpoint, payload)
     local success, result = pcall(function()
-        -- Directly look for the universal request function without wrapping it
+        -- Safely fetch whichever request method Delta uses
         local req = request or http_request or (syn and syn.request)
         if req then
             return req({
@@ -35,9 +35,6 @@ local function httpPost(endpoint, payload)
                 Headers = { ["Content-Type"] = "application/json" },
                 Body = HttpService:JSONEncode(payload)
             })
-        else
-            -- Absolute fallback using native backend pipeline if request is completely hidden
-            return game:HttpPostAsync(BRIDGE_URL .. endpoint, HttpService:JSONEncode(payload), "application/json")
         end
     end)
     return success
@@ -48,7 +45,6 @@ end
 local function ClickUI(button)
     if button and button.Visible then
         pcall(function()
-            -- Bypasses complex event scanning to prevent engine execution panics
             local guiService = game:GetService("GuiService")
             guiService.SelectedObject = button
             task.wait(0.05)
@@ -120,7 +116,6 @@ local function hookInventoryDataChanged()
                 print("🏁 Trade window closed. Notifying local bridge...")
                 isProcessingTrade = false
                 
-                -- Dynamic extraction fallback logic
                 local currentTradePartner = "Unknown"
                 for _, p in ipairs(Players:GetPlayers()) do
                     if p ~= LocalPlayer then
@@ -161,7 +156,7 @@ local function startWithdrawalPollingLoop()
                 end
             end
         end
-        task.wait(4) -- Polling interval
+        task.wait(4)
     end
 end
 
